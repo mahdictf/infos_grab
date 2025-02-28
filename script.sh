@@ -41,7 +41,7 @@ collect_system_info() {
 collect_files() {
     local directory="$1"
     for file_type in "${FILE_TYPES[@]}"; do
-        find "$directory" -type f -iname "$file_type" -not -path "/tmp/script.sh"
+        find "$directory" -type f -iname "$file_type" -not -path "$0"
     done
 }
 
